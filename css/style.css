@@ -33,22 +33,43 @@ body {
 }
 
 
-
 .stars {
-
     position:absolute;
     inset:0;
-
-    background-image:
-    radial-gradient(#ffffff 1px, transparent 1px);
-
-    background-size:
-    80px 80px;
-
-    opacity:.25;
+    overflow:hidden;
 }
 
 
+.star {
+
+    position:absolute;
+
+    background:white;
+
+    border-radius:50%;
+
+    opacity:.7;
+
+    animation:
+    twinkle 3s infinite ease-in-out;
+
+}
+
+
+@keyframes twinkle {
+
+    0%,100% {
+        opacity:.2;
+        transform:scale(1);
+    }
+
+
+    50% {
+        opacity:1;
+        transform:scale(1.4);
+    }
+
+}
 
 
 
