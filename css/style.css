@@ -4,18 +4,17 @@
 
 
 body {
-
     margin:0;
     height:100vh;
-
     overflow:hidden;
 
     background:
+    radial-gradient(circle at 50% 30%,
+    rgba(216,138,42,0.12),
+    transparent 35%),
     radial-gradient(circle at center,
-    #1b1208,
-    #030303 70%);
-
-    font-family: Arial, sans-serif;
+    #120b05,
+    #000 75%);
 
     color:white;
 }
