@@ -1,3 +1,5 @@
+console.log("MAIN JS LOADED");
+
 document.addEventListener("DOMContentLoaded", () => {
 
     const starsContainer = document.querySelector(".stars");
