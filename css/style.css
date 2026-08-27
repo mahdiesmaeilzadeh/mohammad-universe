@@ -276,11 +276,19 @@ h1 {
 
 
 .name-text {
-    font-size: 44px;
-    font-weight: 800;
-    letter-spacing: 3px;
-    color: #f0b35a;
-    text-shadow: 0 0 15px rgba(240,179,90,0.35);
+    font-size: 46px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #ffc46b;
+
+    display: inline-block;
+
+    transform: translateY(6px);
+
+    text-shadow:
+        0 2px 0 #b86f20,
+        0 5px 15px rgba(255,180,80,0.45),
+        0 0 25px rgba(255,190,90,0.35);
 }
 
 
@@ -524,11 +532,11 @@ button:hover {
     .birthday-text {
         font-size: 30px;
     }
-    
+
     .name-text {
         font-size: 36px;
     }
-    
-    
+
+
 
 }
