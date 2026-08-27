@@ -261,11 +261,6 @@ body {
 
 
 h1 {
-
-    font-size:42px;
-
-    letter-spacing:2px;
-
     font-family: "Playfair Display", serif;
     font-weight: 700;
     letter-spacing: 3px;
@@ -274,11 +269,6 @@ h1 {
 
 
 p {
-
-    font-size:20px;
-
-    line-height:1.6;
-
     font-family: "Cormorant Garamond", serif;
     font-size: 24px;
     line-height: 1.5;
