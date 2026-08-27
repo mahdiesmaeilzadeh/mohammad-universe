@@ -262,10 +262,25 @@ body {
 
 h1 {
     font-family: "Playfair Display", serif;
-    font-size: 42px;
-    font-weight: 700;
-    letter-spacing: 2px;
+    text-align: center;
     line-height: 1.2;
+}
+
+
+.birthday-text {
+    font-size: 38px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #ffffff;
+}
+
+
+.name-text {
+    font-size: 44px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #f0b35a;
+    text-shadow: 0 0 15px rgba(240,179,90,0.35);
 }
 
 
@@ -505,5 +520,15 @@ button:hover {
         margin-top: 20px;
 
     }
+
+    .birthday-text {
+        font-size: 30px;
+    }
+    
+    .name-text {
+        font-size: 36px;
+    }
+    
+    
 
 }
