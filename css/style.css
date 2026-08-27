@@ -269,12 +269,16 @@ h1 {
 }
 
 
+
 p {
-    font-family: Arial, sans-serif;
-    font-size: 20px;
-    line-height: 1.6;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0.3px;
     color: #f5e9d0;
 }
+
 
 
 
