@@ -222,15 +222,14 @@ body {
 
 
 .character span {
-
-    display:block;
-
-    margin-top:12px;
-
-    font-size:15px;
-
+    font-family: "Dancing Script", cursive;
+    font-size: 22px;
+    font-weight: 600;
+    color: #f5e9d0;
+    letter-spacing: 1px;
+    display: block;
+    margin-top: 12px;
 }
-
 
 
 
@@ -267,6 +266,9 @@ h1 {
 
     letter-spacing:2px;
 
+    font-family: "Playfair Display", serif;
+    font-weight: 700;
+    letter-spacing: 3px;
 }
 
 
@@ -277,6 +279,9 @@ p {
 
     line-height:1.6;
 
+    font-family: "Cormorant Garamond", serif;
+    font-size: 24px;
+    line-height: 1.5;
 }
 
 
@@ -468,34 +473,5 @@ button:hover {
     }
 
 
-
-    .character span {
-
-        font-size:12px;
-
-    }
-    h1 {
-
-        font-size:28px;
-
-    }
-
-
-
-    p {
-
-        font-size:16px;
-
-    }
-
-
-
-    button {
-
-        font-size:16px;
-
-        padding:14px 28px;
-
-    }
 
 }
