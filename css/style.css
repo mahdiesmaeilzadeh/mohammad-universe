@@ -41,30 +41,40 @@ body {
 
     border-radius:50%;
 
-    opacity:.7;
-
-    animation:
-    twinkle 3s infinite ease-in-out;
+    opacity:0.6;
 
 }
+
+
+.star:nth-child(5n) {
+
+    animation:
+    twinkle 6s infinite ease-in-out;
+
+}
+
+
+
 
 
 @keyframes twinkle {
 
     0%,100% {
-        opacity:.2;
+
+        opacity:0.4;
         transform:scale(1);
+
     }
 
 
     50% {
-        opacity:1;
-        transform:scale(1.4);
+
+        opacity:0.8;
+        transform:scale(1.15);
+
     }
 
 }
-
-
 
 .characters {
 
