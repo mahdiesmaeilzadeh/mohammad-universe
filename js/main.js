@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   createStars(document.querySelector(".intro-stars"), 120, "white");
   createStars(document.querySelector(".transition-stars"), 80, "white");
-  createStars(document.querySelector(".dynamic-stars"), 110, "orange");
+  createStars(document.querySelector(".dynamic-stars"), 72, "orange");
 
   let ambient = null;
   let ambientPermanentlyStopped = false;
@@ -195,7 +195,7 @@ function createStars(container, count, tone) {
     star.style.left = (Math.random() * 100) + "%";
     star.style.top = (Math.random() * 100) + "%";
     star.style.animationDelay = (Math.random() * 3) + "s";
-    star.style.animationDuration = (3.2 + Math.random() * 2.8) + "s";
+    star.style.animationDuration = (2.3 + Math.random() * 2.2) + "s";
 
     if (tone === "orange") {
       star.style.opacity = (.28 + Math.random() * .55).toFixed(2);

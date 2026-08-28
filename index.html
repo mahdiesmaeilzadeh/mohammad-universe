@@ -44,7 +44,7 @@
       <div class="intro-content">
         <h1>
           <span class="birthday-text">HAPPY BIRTHDAY,</span>
-          <span class="name-text">MOHAMMAD</span>
+          <span class="name-text">MOHAMMAD ✨</span>
         </h1>
 
         <p>A little piece of the universe, just for your special day, Mohammad.</p>
@@ -64,114 +64,15 @@
 
     <!-- Scene 2B: birth sky -->
     <section id="skyScene" class="scene scene-sky" aria-label="Mohammad's birth sky">
-  <div class="sky-visual" aria-hidden="true">
-    <div class="sky-backdrop"></div>
-
-    <div class="constellation-overlay">
-      <svg class="constellation-svg" viewBox="0 0 1000 1600" preserveAspectRatio="none">
-        <!-- cluster 1 -->
-        <g class="constellation-group">
-          <line x1="620" y1="180" x2="690" y2="150"></line>
-          <line x1="690" y1="150" x2="750" y2="210"></line>
-          <line x1="750" y1="210" x2="815" y2="180"></line>
-          <line x1="815" y1="180" x2="865" y2="255"></line>
-          <line x1="750" y1="210" x2="740" y2="300"></line>
-
-          <circle cx="620" cy="180" r="4"></circle>
-          <circle cx="690" cy="150" r="4"></circle>
-          <circle cx="750" cy="210" r="4"></circle>
-          <circle cx="815" cy="180" r="4"></circle>
-          <circle cx="865" cy="255" r="4"></circle>
-          <circle cx="740" cy="300" r="4"></circle>
-        </g>
-
-        <!-- cluster 2 -->
-        <g class="constellation-group faint">
-          <line x1="540" y1="320" x2="590" y2="360"></line>
-          <line x1="590" y1="360" x2="660" y2="335"></line>
-          <line x1="660" y1="335" x2="715" y2="395"></line>
-          <line x1="590" y1="360" x2="560" y2="435"></line>
-
-          <circle cx="540" cy="320" r="3.5"></circle>
-          <circle cx="590" cy="360" r="3.5"></circle>
-          <circle cx="660" cy="335" r="3.5"></circle>
-          <circle cx="715" cy="395" r="3.5"></circle>
-          <circle cx="560" cy="435" r="3.5"></circle>
-        </g>
-
-        <!-- cluster 3 -->
-        <g class="constellation-group">
-          <line x1="670" y1="520" x2="735" y2="545"></line>
-          <line x1="735" y1="545" x2="810" y2="510"></line>
-          <line x1="810" y1="510" x2="860" y2="560"></line>
-          <line x1="735" y1="545" x2="740" y2="630"></line>
-          <line x1="740" y1="630" x2="810" y2="665"></line>
-
-          <circle cx="670" cy="520" r="4"></circle>
-          <circle cx="735" cy="545" r="4"></circle>
-          <circle cx="810" cy="510" r="4"></circle>
-          <circle cx="860" cy="560" r="4"></circle>
-          <circle cx="740" cy="630" r="4"></circle>
-          <circle cx="810" cy="665" r="4"></circle>
-        </g>
-
-        <!-- cluster 4 -->
-        <g class="constellation-group faint">
-          <line x1="520" y1="700" x2="600" y2="740"></line>
-          <line x1="600" y1="740" x2="680" y2="710"></line>
-          <line x1="680" y1="710" x2="730" y2="790"></line>
-          <line x1="730" y1="790" x2="660" y2="845"></line>
-          <line x1="660" y1="845" x2="575" y2="815"></line>
-
-          <circle cx="520" cy="700" r="3.5"></circle>
-          <circle cx="600" cy="740" r="3.5"></circle>
-          <circle cx="680" cy="710" r="3.5"></circle>
-          <circle cx="730" cy="790" r="3.5"></circle>
-          <circle cx="660" cy="845" r="3.5"></circle>
-          <circle cx="575" cy="815" r="3.5"></circle>
-        </g>
-
-        <!-- cluster 5 -->
-        <g class="constellation-group">
-          <line x1="640" y1="980" x2="710" y2="940"></line>
-          <line x1="710" y1="940" x2="785" y2="985"></line>
-          <line x1="785" y1="985" x2="840" y2="940"></line>
-          <line x1="785" y1="985" x2="770" y2="1060"></line>
-          <line x1="770" y1="1060" x2="845" y2="1100"></line>
-
-          <circle cx="640" cy="980" r="4"></circle>
-          <circle cx="710" cy="940" r="4"></circle>
-          <circle cx="785" cy="985" r="4"></circle>
-          <circle cx="840" cy="940" r="4"></circle>
-          <circle cx="770" cy="1060" r="4"></circle>
-          <circle cx="845" cy="1100" r="4"></circle>
-        </g>
-
-        <!-- verified moon zodiac area: Cancer-inspired central motif -->
-        <g class="constellation-group highlight">
-          <line x1="410" y1="350" x2="465" y2="315"></line>
-          <line x1="465" y1="315" x2="520" y2="360"></line>
-          <line x1="520" y1="360" x2="570" y2="325"></line>
-          <circle cx="410" cy="350" r="4.5"></circle>
-          <circle cx="465" cy="315" r="4.5"></circle>
-          <circle cx="520" cy="360" r="4.5"></circle>
-          <circle cx="570" cy="325" r="4.5"></circle>
-        </g>
-      </svg>
-    </div>
-
-    <div class="moon-wrap">
-      <div class="moon-glow"></div>
-      <div class="moon-disc">
-        <div class="moon-texture"></div>
-        <div class="moon-shadow"></div>
+      <div class="sky-visual" aria-hidden="true">
+        <picture class="sky-picture">
+          <source media="(max-width: 768px) and (orientation: portrait)" srcset="assets/sky/sky-mobile.png" />
+          <img src="assets/sky/sky-desktop.png" alt="" class="sky-art" />
+        </picture>
+        <div class="dynamic-stars stars"></div>
+        <div class="shooting-star"></div>
+        <div class="sky-vignette"></div>
       </div>
-    </div>
-
-    <div class="dynamic-stars stars"></div>
-    <div class="shooting-star"></div>
-    <div class="sky-vignette"></div>
-  </div>
 
       <div class="sky-caption">
         <span>August 24, 2011</span>
@@ -189,7 +90,7 @@
         <h2>Your Song</h2>
         <p class="music-note">Custom mixed for Mohammad. You are the first person to hear this version.</p>
 
-        <audio id="mainSong" preload="metadata" src="assets/audio/main-song.mp3"></audio>
+        <audio id="mainSong" preload="metadata" src="assets/audio/main-song.wav"></audio>
 
         <div class="player-row">
           <button id="playSongBtn" class="play-btn" type="button" aria-label="Play song">▶</button>
@@ -202,7 +103,7 @@
           </div>
         </div>
 
-        <a class="download-link" href="assets/audio/main-song.mp3" download="Mohammad-Special-Song.mp3">Download this song ↓</a>
+        <a class="download-link" href="assets/audio/main-song.wav" download="Mohammad-Special-Song.wav">Download this song ↓</a>
       </section>
     </section>
   </main>

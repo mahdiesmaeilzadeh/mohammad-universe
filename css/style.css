@@ -298,210 +298,88 @@ button { -webkit-tap-highlight-color: transparent; }
   background: #020101;
 }
 
-.sky-backdrop {
+.sky-picture {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 30% 18%, rgba(255, 133, 18, .06), transparent 24%),
-    radial-gradient(circle at 55% 42%, rgba(255, 133, 18, .04), transparent 34%),
-    radial-gradient(circle at 50% 50%, #130802 0%, #070301 45%, #010101 100%);
-}
-
-.constellation-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  opacity: .9;
-  pointer-events: none;
-}
-
-.constellation-svg {
+  display: block;
   width: 100%;
   height: 100%;
 }
 
-.constellation-group line {
-  stroke: rgba(255, 176, 88, .62);
-  stroke-width: 2;
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 3px rgba(255, 145, 46, .28));
-}
-
-.constellation-group circle {
-  fill: #ffd7a2;
-  filter: drop-shadow(0 0 5px rgba(255, 166, 73, .45));
-}
-
-.constellation-group.faint line {
-  stroke: rgba(255, 176, 88, .38);
-}
-
-.constellation-group.faint circle {
-  opacity: .8;
-}
-
-.constellation-group.highlight line {
-  stroke: rgba(255, 199, 126, .9);
-  stroke-width: 2.2;
-}
-
-.constellation-group.highlight circle {
-  fill: #ffe7c4;
-}
-
-.moon-wrap {
-  position: absolute;
-  z-index: 3;
-  left: clamp(32px, 7vw, 96px);
-  top: clamp(92px, 12vh, 150px);
-  width: min(32vw, 360px);
-  aspect-ratio: 1 / 1;
-  transform: scale(var(--bass-scale));
-  transform-origin: center center;
-  transition: transform .08s linear;
-  animation: moonFloat 8s ease-in-out infinite alternate;
-}
-
-@keyframes moonFloat {
-  from { transform: translateY(0) scale(var(--bass-scale)); }
-  to { transform: translateY(10px) scale(var(--bass-scale)); }
-}
-
-.moon-glow {
-  position: absolute;
-  inset: -14%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle,
-      rgba(255, 134, 30, calc(var(--bass-glow) * .56)) 0%,
-      rgba(255, 112, 16, calc(var(--bass-glow) * .22)) 38%,
-      rgba(255, 92, 10, calc(var(--bass-glow) * .08)) 58%,
-      transparent 72%);
-  filter: blur(22px);
-  mix-blend-mode: screen;
-  pointer-events: none;
-}
-
-.moon-disc {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 34% 28%, #ffbf76 0%, #ffae56 18%, #f68a22 42%, #b65410 70%, #5a2206 100%);
-  box-shadow:
-    inset -22px -22px 30px rgba(58, 19, 4, .42),
-    inset 12px 10px 18px rgba(255, 202, 132, .22);
-}
-
-.moon-texture {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  opacity: .48;
-  background:
-    radial-gradient(circle at 28% 22%, rgba(255,255,255,.22) 0 3%, transparent 4%),
-    radial-gradient(circle at 36% 38%, rgba(90,35,5,.18) 0 7%, transparent 8%),
-    radial-gradient(circle at 24% 57%, rgba(66,23,4,.20) 0 8%, transparent 9%),
-    radial-gradient(circle at 48% 30%, rgba(255,220,173,.18) 0 5%, transparent 6%),
-    radial-gradient(circle at 44% 70%, rgba(77,26,4,.22) 0 9%, transparent 10%),
-    radial-gradient(circle at 20% 78%, rgba(255,215,170,.16) 0 5%, transparent 6%),
-    radial-gradient(circle at 58% 55%, rgba(70,24,4,.16) 0 6%, transparent 7%);
-  mix-blend-mode: soft-light;
-}
-
-.moon-shadow {
-  position: absolute;
-  top: -2%;
-  left: 37%;
+.sky-art {
+  display: block;
   width: 100%;
-  height: 104%;
-  border-radius: 50%;
-  background: #050201;
-  box-shadow: inset -10px 0 18px rgba(255, 170, 90, .05);
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  filter: none;
 }
 
-/* dynamic stars */
-.dynamic-stars {
-  z-index: 2;
-}
-
+.dynamic-stars { z-index: 2; }
 .dynamic-stars .star {
-  background: #fff0d4;
-  box-shadow: 0 0 8px rgba(255, 180, 95, .42);
-  animation: twinkle 3.4s infinite ease-in-out;
+  background: #ffd7a2;
+  box-shadow: 0 0 8px rgba(255, 154, 55, .55);
 }
 
 .shooting-star {
   position: absolute;
-  z-index: 4;
-  top: 20%;
-  left: -22%;
-  width: 150px;
+  z-index: 3;
+  top: 18%;
+  left: -25%;
+  width: 145px;
   height: 2px;
   opacity: 0;
   transform: rotate(-17deg);
-  background: linear-gradient(90deg, transparent, #ffd9a8 62%, #fff);
-  filter: drop-shadow(0 0 8px rgba(255, 174, 84, .85));
-  animation: shoot 10s 5s infinite;
+  background: linear-gradient(90deg, transparent, #ffe7c8 60%, #fff);
+  filter: drop-shadow(0 0 6px rgba(255, 174, 84, .9));
+  animation: shoot 9s 4s infinite;
 }
 
 @keyframes shoot {
-  0%, 72% {
-    opacity: 0;
-    transform: translate(0, 0) rotate(-17deg);
-  }
-  74% {
-    opacity: 1;
-  }
-  84% {
-    opacity: 0;
-    transform: translate(145vw, 42vh) rotate(-17deg);
-  }
-  100% {
-    opacity: 0;
-  }
+  0%, 72% { opacity: 0; transform: translate(0,0) rotate(-17deg); }
+  74% { opacity: 1; }
+  82% { opacity: 0; transform: translate(145vw, 44vh) rotate(-17deg); }
+  100% { opacity: 0; }
 }
+
 .sky-vignette {
   position: absolute;
-  z-index: 5;
+  z-index: 4;
   inset: 0;
   background:
-    linear-gradient(to bottom, rgba(0,0,0,.06), transparent 30%, transparent 70%, rgba(0,0,0,.65)),
-    radial-gradient(circle at center, transparent 52%, rgba(0,0,0,.36) 100%);
+    linear-gradient(to bottom, rgba(0,0,0,.08), transparent 28%, transparent 68%, rgba(0,0,0,.68)),
+    radial-gradient(circle at center, transparent 54%, rgba(0,0,0,.24) 100%);
   pointer-events: none;
 }
 
 .sky-caption {
   position: absolute;
-  z-index: 6;
+  z-index: 5;
   left: 50%;
   top: max(18px, env(safe-area-inset-top));
   transform: translateX(-50%);
   width: 90%;
   text-align: center;
-  color: rgba(255,246,231,.84);
+  color: rgba(255,246,231,.82);
   text-shadow: 0 2px 12px #000;
 }
-
 .sky-caption span {
   display: block;
   font-family: "Playfair Display", serif;
   font-size: 18px;
   letter-spacing: 1px;
 }
-
 .sky-caption small {
   display: block;
   margin-top: 4px;
   font-size: 11px;
   letter-spacing: .7px;
-  opacity: .74;
+  opacity: .72;
 }
 
 .sky-surprise {
   position: absolute;
-  z-index: 7;
+  z-index: 6;
   left: 50%;
   bottom: max(34px, calc(env(safe-area-inset-bottom) + 18px));
   width: min(620px, 90vw);
@@ -653,16 +531,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .transition-line { font-size: clamp(38px, 12vw, 58px); }
 
   .sky-art {
-    inset: -4%;
-    width: 108%;
-    height: 108%;
-    object-position: 48% 50%;
-  }
-
-  .moon-glow {
-    left: 2%;
-    top: 17%;
-    width: 76%;
+    object-position: center center;
   }
 
   .sky-caption span { font-size: 16px; }
@@ -675,30 +544,6 @@ button { -webkit-tap-highlight-color: transparent; }
   }
   .music-panel h2 { font-size: 29px; }
   .music-note { font-size: 18px; }
-
-  .moon-wrap {
-    left: -6vw;
-    top: 15vh;
-    width: 62vw;
-    max-width: 260px;
-  }
-
-  .constellation-overlay {
-    opacity: .82;
-  }
-
-  .constellation-svg {
-    transform: scale(1.03);
-    transform-origin: center center;
-  }
-
-  .sky-caption span {
-    font-size: 16px;
-  }
-
-  .sky-surprise {
-    bottom: max(26px, calc(env(safe-area-inset-bottom) + 15px));
-  }
 }
 
 @media (max-height: 690px) and (max-width: 600px) {
@@ -711,9 +556,4 @@ button { -webkit-tap-highlight-color: transparent; }
   .name-text { font-size: 33px; }
   .intro-content p { font-size: 18px; }
   .primary-btn { margin-top: 14px; }
-  .moon-wrap {
-    top: 13vh;
-    width: 58vw;
-    max-width: 235px;
-  }
 }
