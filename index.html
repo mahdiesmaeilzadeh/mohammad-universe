@@ -1,89 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050301" />
+  <title>Mohammad Universe</title>
 
-    <title>Mohammad Universe</title>
-
-    <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Dancing+Script:wght@600&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
 </head>
-
 <body>
+  <main id="app">
+    <!-- Scene 1: Birthday card intro -->
+    <section id="introScene" class="scene scene-intro active" aria-label="Birthday intro">
+      <div class="stars intro-stars" aria-hidden="true"></div>
 
-<div class="scene">
-
-    <div class="stars"></div>
-
-
-    <div class="characters">
-
+      <div class="characters" aria-hidden="true">
         <div class="character left">
-            <div class="avatar">
-                <div class="face">
-                    <div class="eye left-eye"></div>
-                    <div class="eye right-eye"></div>
-                    <div class="smile"></div>
-                </div>
+          <div class="avatar">
+            <div class="face">
+              <span class="eye left-eye"></span>
+              <span class="eye right-eye"></span>
+              <span class="smile"></span>
             </div>
-
-            <span>Mohammad Mahdi</span>
+          </div>
+          <span class="character-name">Mohammad Mahdi</span>
         </div>
-
 
         <div class="character right">
-            <div class="avatar">
-                <div class="face">
-                    <div class="eye left-eye"></div>
-                    <div class="eye right-eye"></div>
-                    <div class="smile"></div>
-                </div>
+          <div class="avatar">
+            <div class="face">
+              <span class="eye left-eye"></span>
+              <span class="eye right-eye"></span>
+              <span class="smile"></span>
             </div>
+          </div>
+          <span class="character-name">Alireza</span>
+        </div>
+      </div>
 
-            <span>Alireza</span>
+      <div class="intro-content">
+        <h1>
+          <span class="birthday-text">HAPPY BIRTHDAY,</span>
+          <span class="name-text">MOHAMMAD ✨</span>
+        </h1>
+
+        <p>A little piece of the universe, just for your special day, Mohammad.</p>
+        <p>With endless love from Mohammad Mehdi &amp; Alireza.</p>
+
+        <button id="enterUniverseBtn" class="primary-btn" type="button">
+          Enter Your Universe ✨
+        </button>
+      </div>
+    </section>
+
+    <!-- Scene 2A: cinematic text transition -->
+    <section id="transitionScene" class="scene scene-transition" aria-live="polite">
+      <div class="transition-stars stars" aria-hidden="true"></div>
+      <div id="transitionCopy" class="transition-copy"></div>
+    </section>
+
+    <!-- Scene 2B: birth sky -->
+    <section id="skyScene" class="scene scene-sky" aria-label="Mohammad's birth sky">
+      <div class="sky-visual" aria-hidden="true">
+        <img src="assets/sky/mohammad-sky.jpg" alt="" class="sky-art" />
+        <div class="moon-glow"></div>
+        <div class="dynamic-stars stars"></div>
+        <div class="shooting-star"></div>
+        <div class="sky-vignette"></div>
+      </div>
+
+      <div class="sky-caption">
+        <span>August 24, 2011</span>
+        <small>Lahijan, Gilan, Iran · pre-dawn</small>
+      </div>
+
+      <div id="skySurprise" class="sky-surprise">
+        <p>We have one more surprise for you...</p>
+        <button id="revealMusicBtn" class="secondary-btn" type="button">Reveal Your Surprise ✨</button>
+      </div>
+
+      <section id="musicPanel" class="music-panel" aria-label="Special song">
+        <button id="closeMusicBtn" class="close-panel" type="button" aria-label="Close music panel">×</button>
+        <p class="music-kicker">A special song made only for you.</p>
+        <h2>Your Song</h2>
+        <p class="music-note">Custom mixed for Mohammad. You are the first person to hear this version.</p>
+
+        <audio id="mainSong" preload="metadata" src="assets/audio/main-song.wav"></audio>
+
+        <div class="player-row">
+          <button id="playSongBtn" class="play-btn" type="button" aria-label="Play song">▶</button>
+          <div class="track-wrap">
+            <input id="songProgress" class="song-progress" type="range" min="0" max="100" value="0" step="0.1" aria-label="Song progress" />
+            <div class="time-row">
+              <span id="currentTime">0:00</span>
+              <span id="duration">0:00</span>
+            </div>
+          </div>
         </div>
 
-    </div>
+        <a class="download-link" href="assets/audio/main-song.wav" download="Mohammad-Special-Song.wav">Download this song ↓</a>
+      </section>
+    </section>
+  </main>
 
-
-
-    <div class="content">
-
-        <h1>
-    <span class="birthday-text">HAPPY BIRTHDAY,</span>
-    <br>
-    <span class="name-text">MOHAMMAD</span>
-    </h1>
-
-
-        <p>
-            A little piece of the universe,
-            just for your special day, Mohammad.
-        </p>
-
-
-        <p>
-            With endless love from Mohammad Mehdi & Alireza.
-        </p>
-
-
-        <button>
-            Enter Your Universe ✨
-        </button>
-
-    </div>
-
-
-</div>
-
-
-<script src="js/main.js"></script>
-
+  <script src="js/main.js"></script>
 </body>
 </html>
-
-<div class="stars"></div>
-
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Dancing+Script:wght@500;600&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
