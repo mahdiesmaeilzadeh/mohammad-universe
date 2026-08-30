@@ -1,4 +1,4 @@
-console.log("Mohammad Universe v7 track-synced bass map loaded");
+console.log("Mohammad Universe v7 loaded");
 
 document.addEventListener("DOMContentLoaded", function () {
   const introScene = document.getElementById("introScene");
@@ -22,19 +22,11 @@ document.addEventListener("DOMContentLoaded", function () {
   createStars(document.querySelector(".dynamic-stars"), 72, "orange");
 
   let firstSongStart = true;
+  let audioGraphReady = false;
+  let analyser = null;
   let audioContext = null;
-
-  // This song now uses a precomputed kick/bass map generated from the actual
-  // uploaded Hayede.mp3. No live FFT guessing = no false visual punches on
-  // vocals, sustained bass notes, or unrelated low-frequency content.
-  const bassHits = Array.isArray(window.MOHAMMAD_BASS_HITS)
-    ? window.MOHAMMAD_BASS_HITS
-    : [];
-  const skyVisualEl = document.querySelector(".sky-visual");
-  let beatMapFrame = null;
-  let beatMapIndex = 0;
-  let lastSongTime = 0;
-  let hitCleanupTimer = null;
+  let sourceNode = null;
+  let reactionFrame = null;
 
   enterUniverseBtn.addEventListener("click", async function () {
     // A user gesture is available here, so initialise/resume Web Audio now.
@@ -68,7 +60,7 @@ document.addEventListener("DOMContentLoaded", function () {
     switchScene(transitionScene, skyScene);
     await pause(180);
 
-    // Start the first bell exactly as the moon/stars begin to fade in.
+    // One-time longer shine/chime, timed exactly with the sky reveal.
     playShineSound(audioContext);
     skyScene.classList.add("sky-revealed");
     transitionScene.classList.remove("blackout");
@@ -89,15 +81,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (mainSong.paused) {
       const isFirstStart = firstSongStart;
 
-
       try {
+        await setupSongAudioGraph();
+
         if (isFirstStart) {
           mainSong.volume = 0;
         }
 
         await mainSong.play();
         playSongBtn.textContent = "❚❚";
-        startBeatMapReaction();
+        startMusicReaction();
 
         if (isFirstStart) {
           firstSongStart = false;
@@ -109,7 +102,7 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       mainSong.pause();
       playSongBtn.textContent = "▶";
-      stopBeatMapReaction();
+      stopMusicReaction();
     }
   });
 
@@ -126,111 +119,171 @@ document.addEventListener("DOMContentLoaded", function () {
   mainSong.addEventListener("ended", function () {
     playSongBtn.textContent = "▶";
     songProgress.value = 0;
-    stopBeatMapReaction();
+    stopMusicReaction();
   });
 
   songProgress.addEventListener("input", function () {
     if (!mainSong.duration) return;
     mainSong.currentTime = (Number(songProgress.value) / 100) * mainSong.duration;
-    syncBeatMapToCurrentTime();
   });
 
-  mainSong.addEventListener("seeked", function () {
-    syncBeatMapToCurrentTime();
-  });
+  async function setupSongAudioGraph() {
+    if (audioGraphReady) return;
+    audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioContext.state === "suspended") await audioContext.resume();
 
-  function syncBeatMapToCurrentTime() {
-    const target = Math.max(0, mainSong.currentTime - 0.06);
-    let lo = 0;
-    let hi = bassHits.length;
+    sourceNode = audioContext.createMediaElementSource(mainSong);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.18;
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
 
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (bassHits[mid].t < target) lo = mid + 1;
-      else hi = mid;
-    }
-
-    beatMapIndex = lo;
-    lastSongTime = mainSong.currentTime;
+    sourceNode.connect(analyser);
+    analyser.connect(audioContext.destination);
+    audioGraphReady = true;
   }
 
-  function startBeatMapReaction() {
-    if (!bassHits.length || beatMapFrame) return;
+  function startMusicReaction() {
+    if (!analyser || reactionFrame) return;
 
-    syncBeatMapToCurrentTime();
-    const leadSeconds = 0.030;
+    const bins = new Uint8Array(analyser.frequencyBinCount);
+    const hzPerBin = audioContext.sampleRate / analyser.fftSize;
 
-    function frame() {
-      if (mainSong.paused || mainSong.ended) {
-        beatMapFrame = null;
-        return;
-      }
+    // Kick/sub-bass area only. Keeping this narrow prevents vocals,
+    // snares and bright percussion from causing fake "bass" pulses.
+    const bassStartBin = Math.max(1, Math.floor(40 / hzPerBin));
+    const bassEndBin = Math.min(
+      analyser.frequencyBinCount - 1,
+      Math.ceil(140 / hzPerBin)
+    );
 
-      const now = mainSong.currentTime;
+    let envelope = 0;
+    let previousEnvelope = 0;
+    let loudnessFloor = 0.10;
+    let attackAverage = 0.010;
+    let lastBeatAt = -Infinity;
+    let lastFrameAt = performance.now();
+    let pulse = 0;
 
-      // If the user seeks or the browser makes a large playback jump, reset
-      // the pointer so an old hit can never fire at the wrong time.
-      if (now < lastSongTime - 0.12 || now > lastSongTime + 0.45) {
-        syncBeatMapToCurrentTime();
-      }
+    // Let the detector hear a short piece of the song before it starts
+    // deciding what counts as an unusual bass attack.
+    const readyAt = performance.now() + 550;
 
-      while (beatMapIndex < bassHits.length && bassHits[beatMapIndex].t <= now + leadSeconds) {
-        const hit = bassHits[beatMapIndex];
+    function getBassEnergy() {
+      let energy = 0;
+      let weightTotal = 0;
 
-        // Only trigger if this frame is genuinely close to the mapped kick.
-        // This protects against late frames after backgrounding / lag.
-        if (hit.t >= now - 0.105) {
-          triggerMappedBassHit(hit.s);
+      for (let i = bassStartBin; i <= bassEndBin; i++) {
+        const value = bins[i] / 255;
+        const hz = i * hzPerBin;
+
+        // Most kick fundamentals live around 55-105 Hz.
+        let weight = 1;
+        if (hz >= 55 && hz <= 105) {
+          weight = 1.45;
+        } else if (hz > 105) {
+          weight = 0.72;
         }
 
-        beatMapIndex += 1;
+        energy += value * value * weight;
+        weightTotal += weight;
       }
 
-      lastSongTime = now;
-      beatMapFrame = requestAnimationFrame(frame);
+      return Math.sqrt(energy / Math.max(1, weightTotal));
     }
 
-    beatMapFrame = requestAnimationFrame(frame);
+    function frame(now) {
+      analyser.getByteFrequencyData(bins);
+
+      const rawBass = getBassEnergy();
+
+      // Envelope follower. Fast enough to capture the front edge of a kick,
+      // slow enough that tiny FFT changes do not look like beats.
+      const envelopeSpeed = rawBass > envelope ? 0.62 : 0.16;
+      envelope += (rawBass - envelope) * envelopeSpeed;
+
+      const attack = Math.max(0, envelope - previousEnvelope);
+      previousEnvelope = envelope;
+
+      const dt = Math.min(50, Math.max(8, now - lastFrameAt));
+      lastFrameAt = now;
+
+      // Visual punch dies quickly after every hit.
+      pulse *= Math.exp(-dt / 145);
+
+      // Slowly track overall bass loudness and the normal amount of movement.
+      loudnessFloor += (envelope - loudnessFloor) * 0.010;
+
+      const attackThreshold = Math.max(
+        0.022,
+        attackAverage * 1.65
+      );
+
+      const enoughBass =
+        envelope > Math.max(0.12, loudnessFloor * 0.76);
+
+      const realAttack = attack > attackThreshold;
+      const cooldownPassed = (now - lastBeatAt) > 320;
+
+      if (
+        now >= readyAt &&
+        enoughBass &&
+        realAttack &&
+        cooldownPassed
+      ) {
+        // Strength is based on how sharp the bass hit was, not how long
+        // the bass note stays loud.
+        const strength = clamp01(
+          0.50 +
+          ((attack - attackThreshold) / 0.095) * 0.50
+        );
+
+        pulse = Math.max(pulse, strength);
+        lastBeatAt = now;
+      }
+
+      // Update this after detection so the current kick cannot raise its own
+      // threshold before being evaluated.
+      attackAverage += (attack - attackAverage) * 0.020;
+
+      // One quick camera punch centered around the moon. No permanent zoom.
+      const shaped = Math.pow(clamp01(pulse), 0.82);
+      const scale = 1 + shaped * 0.0125;
+      const brightness = 1 + shaped * 0.036;
+      const saturate = 1 + shaped * 0.035;
+      const starBrightness = 1 + shaped * 0.095;
+      const glow = shaped * 0.11;
+
+      const root = document.documentElement.style;
+      root.setProperty("--bass-scale", scale.toFixed(4));
+      root.setProperty("--bass-brightness", brightness.toFixed(3));
+      root.setProperty("--bass-saturate", saturate.toFixed(3));
+      root.setProperty("--bass-star-brightness", starBrightness.toFixed(3));
+      root.setProperty("--bass-glow", glow.toFixed(3));
+
+      reactionFrame = requestAnimationFrame(frame);
+    }
+
+    reactionFrame = requestAnimationFrame(frame);
   }
 
-  function triggerMappedBassHit(strength) {
-    if (!skyVisualEl) return;
-
-    const s = Math.max(0.45, Math.min(1, Number(strength) || 0.65));
-
-    // Keep the punch restrained: roughly 0.8% to 1.25% at the peak.
-    // Stronger mapped kicks get slightly more warmth/glow, not a cartoon zoom.
-    skyVisualEl.style.setProperty("--hit-scale", (1.006 + s * 0.0065).toFixed(4));
-    skyVisualEl.style.setProperty("--hit-brightness", (1.018 + s * 0.030).toFixed(3));
-    skyVisualEl.style.setProperty("--hit-saturate", (1.018 + s * 0.038).toFixed(3));
-    skyVisualEl.style.setProperty("--hit-star-brightness", (1.04 + s * 0.10).toFixed(3));
-    skyVisualEl.style.setProperty("--hit-glow", (0.045 + s * 0.105).toFixed(3));
-
-    // Restart the short CSS animation even if hits occur close together.
-    skyVisualEl.classList.remove("bass-hit");
-    void skyVisualEl.offsetWidth;
-    skyVisualEl.classList.add("bass-hit");
-
-    if (hitCleanupTimer) clearTimeout(hitCleanupTimer);
-    hitCleanupTimer = setTimeout(function () {
-      skyVisualEl.classList.remove("bass-hit");
-    }, 390);
+  function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
   }
 
-  function stopBeatMapReaction() {
-    if (beatMapFrame) {
-      cancelAnimationFrame(beatMapFrame);
-      beatMapFrame = null;
+  function stopMusicReaction() {
+    if (reactionFrame) {
+      cancelAnimationFrame(reactionFrame);
+      reactionFrame = null;
     }
 
-    if (hitCleanupTimer) {
-      clearTimeout(hitCleanupTimer);
-      hitCleanupTimer = null;
-    }
-
-    if (skyVisualEl) {
-      skyVisualEl.classList.remove("bass-hit");
-    }
+    const root = document.documentElement.style;
+    root.setProperty("--bass-scale", "1");
+    root.setProperty("--bass-brightness", "1");
+    root.setProperty("--bass-saturate", "1");
+    root.setProperty("--bass-star-brightness", "1");
+    root.setProperty("--bass-glow", "0");
   }
 
   async function runCinematicPhrase(lines) {
@@ -284,6 +337,126 @@ function createStars(container, count, tone) {
   }
 }
 
+function playShineSound(ctx) {
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const master = ctx.createGain();
+  const dry = ctx.createGain();
+  const delay = ctx.createDelay(1.5);
+  const feedback = ctx.createGain();
+  const wet = ctx.createGain();
+  const highpass = ctx.createBiquadFilter();
+
+  // One reveal effect only: about 3.5 seconds, no loop/ambient bed.
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(0.72, now + 0.06);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 3.6);
+
+  dry.gain.value = 0.42;
+  wet.gain.value = 0.24;
+  delay.delayTime.value = 0.19;
+  feedback.gain.value = 0.28;
+
+  highpass.type = "highpass";
+  highpass.frequency.value = 760;
+  highpass.Q.value = 0.45;
+
+  master.connect(dry);
+  dry.connect(ctx.destination);
+
+  master.connect(delay);
+  delay.connect(feedback);
+  feedback.connect(delay);
+  delay.connect(highpass);
+  highpass.connect(wet);
+  wet.connect(ctx.destination);
+
+  // Rising glassy chimes: "shine", not a short single ding.
+  const notes = [
+    { f: 783.99,  t: 0.00, level: 0.11,  decay: 2.55 },
+    { f: 1046.50, t: 0.18, level: 0.10,  decay: 2.65 },
+    { f: 1318.51, t: 0.39, level: 0.085, decay: 2.70 },
+    { f: 1567.98, t: 0.68, level: 0.070, decay: 2.65 },
+    { f: 2093.00, t: 1.02, level: 0.050, decay: 2.30 }
+  ];
+
+  notes.forEach(function (note, index) {
+    const osc = ctx.createOscillator();
+    const overtone = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const panner = typeof ctx.createStereoPanner === "function"
+      ? ctx.createStereoPanner()
+      : null;
+
+    osc.type = "sine";
+    overtone.type = "sine";
+    osc.frequency.setValueAtTime(note.f, now + note.t);
+    overtone.frequency.setValueAtTime(note.f * 2.003, now + note.t);
+
+    gain.gain.setValueAtTime(0.0001, now + note.t);
+    gain.gain.exponentialRampToValueAtTime(
+      note.level,
+      now + note.t + 0.025
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      now + note.t + note.decay
+    );
+
+    osc.connect(gain);
+    overtone.connect(gain);
+
+    if (panner) {
+      panner.pan.value = -0.45 + index * 0.22;
+      gain.connect(panner);
+      panner.connect(master);
+    } else {
+      gain.connect(master);
+    }
+
+    osc.start(now + note.t);
+    overtone.start(now + note.t);
+    osc.stop(now + note.t + note.decay + 0.1);
+    overtone.stop(now + note.t + note.decay + 0.1);
+  });
+
+  // Soft high-frequency sparkle tail.
+  const bufferLength = Math.floor(ctx.sampleRate * 2.7);
+  const noiseBuffer = ctx.createBuffer(1, bufferLength, ctx.sampleRate);
+  const noiseData = noiseBuffer.getChannelData(0);
+
+  for (let i = 0; i < bufferLength; i++) {
+    noiseData[i] =
+      (Math.random() * 2 - 1) *
+      Math.exp(-i / (bufferLength * 0.28));
+  }
+
+  const noise = ctx.createBufferSource();
+  const noiseFilter = ctx.createBiquadFilter();
+  const noiseGain = ctx.createGain();
+
+  noiseFilter.type = "bandpass";
+  noiseFilter.frequency.value = 5200;
+  noiseFilter.Q.value = 1.1;
+
+  noiseGain.gain.setValueAtTime(0.0001, now + 0.12);
+  noiseGain.gain.exponentialRampToValueAtTime(0.018, now + 0.42);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.7);
+
+  noise.buffer = noiseBuffer;
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(master);
+
+  noise.start(now + 0.12);
+  noise.stop(now + 2.85);
+
+  setTimeout(function () {
+    try { master.disconnect(); } catch (e) {}
+  }, 3900);
+}
+
 function fadeMediaVolume(media, from, to, durationMs) {
   const startedAt = performance.now();
   media.volume = Math.max(0, Math.min(1, from));
@@ -310,68 +483,3 @@ function pause(ms) {
     setTimeout(resolve, ms);
   });
 }
-function playShineSound(ctx) {
-
-    if (!ctx) return;
-
-    const now = ctx.currentTime;
-
-    const master = ctx.createGain();
-    const delay = ctx.createDelay(1);
-    const feedback = ctx.createGain();
-    const wet = ctx.createGain();
-
-    master.gain.value = 0.32;
-
-    delay.delayTime.value = 0.14;
-    feedback.gain.value = 0.22;
-    wet.gain.value = 0.22;
-
-    master.connect(ctx.destination);
-
-    master.connect(delay);
-    delay.connect(feedback);
-    feedback.connect(delay);
-    delay.connect(wet);
-    wet.connect(ctx.destination);
-
-
-    const notes = [
-        { frequency: 1046.5, time: 0 },
-        { frequency: 1568.0, time: 0.11 },
-        { frequency: 2093.0, time: 0.23 }
-    ];
-
-
-    notes.forEach(function (note) {
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = "sine";
-        osc.frequency.value = note.frequency;
-
-        gain.gain.setValueAtTime(
-            0.0001,
-            now + note.time
-        );
-
-        gain.gain.exponentialRampToValueAtTime(
-            0.13,
-            now + note.time + 0.025
-        );
-
-        gain.gain.exponentialRampToValueAtTime(
-            0.0001,
-            now + note.time + 1.15
-        );
-
-        osc.connect(gain);
-        gain.connect(master);
-
-        osc.start(now + note.time);
-        osc.stop(now + note.time + 1.2);
-
-    });
-}
-
