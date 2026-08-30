@@ -21,8 +21,6 @@ document.addEventListener("DOMContentLoaded", function () {
   createStars(document.querySelector(".transition-stars"), 80, "white");
   createStars(document.querySelector(".dynamic-stars"), 72, "orange");
 
-  let ambient = null;
-  let ambientPermanentlyStopped = false;
   let firstSongStart = true;
   let audioContext = null;
 
@@ -71,9 +69,7 @@ document.addEventListener("DOMContentLoaded", function () {
     await pause(180);
 
     // Start the first bell exactly as the moon/stars begin to fade in.
-    if (!ambientPermanentlyStopped) {
-      ambient = startStarAmbience(audioContext);
-    }
+    playShineSound(audioContext);
     skyScene.classList.add("sky-revealed");
     transitionScene.classList.remove("blackout");
 
@@ -93,10 +89,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (mainSong.paused) {
       const isFirstStart = firstSongStart;
 
-      if (!ambientPermanentlyStopped) {
-        ambientPermanentlyStopped = true;
-        if (ambient) ambient.fadeOutAndStop(1.15);
-      }
 
       try {
         if (isFirstStart) {
@@ -292,122 +284,6 @@ function createStars(container, count, tone) {
   }
 }
 
-function startStarAmbience(ctx) {
-  if (!ctx) return null;
-
-  const master = ctx.createGain();
-  const padGain = ctx.createGain();
-  const padFilter = ctx.createBiquadFilter();
-  const pad1 = ctx.createOscillator();
-  const pad2 = ctx.createOscillator();
-
-  let stopped = false;
-  let timer = null;
-
-  master.gain.setValueAtTime(0.0001, ctx.currentTime);
-  master.gain.exponentialRampToValueAtTime(0.72, ctx.currentTime + 0.75);
-  master.connect(ctx.destination);
-
-  // Barely audible atmospheric bed underneath the "diring-diring" bells.
-  padFilter.type = "lowpass";
-  padFilter.frequency.value = 480;
-  padFilter.Q.value = 0.55;
-
-  padGain.gain.value = 0.018;
-  pad1.type = "sine";
-  pad2.type = "triangle";
-  pad1.frequency.value = 65.41;  // C2
-  pad2.frequency.value = 98.00;  // G2-ish
-
-  pad1.connect(padFilter);
-  pad2.connect(padFilter);
-  padFilter.connect(padGain);
-  padGain.connect(master);
-
-  pad1.start();
-  pad2.start();
-
-  const bellNotes = [523.25, 659.25, 783.99, 880.00, 1046.50, 1174.66];
-
-  function bell(frequency, when, level) {
-    if (stopped) return;
-
-    const gain = ctx.createGain();
-    const tone = ctx.createOscillator();
-    const overtone = ctx.createOscillator();
-    const panner = typeof ctx.createStereoPanner === "function" ? ctx.createStereoPanner() : null;
-
-    tone.type = "sine";
-    overtone.type = "sine";
-    tone.frequency.setValueAtTime(frequency, when);
-    overtone.frequency.setValueAtTime(frequency * 2.01, when);
-
-    gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.exponentialRampToValueAtTime(level, when + 0.018);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 1.55);
-
-    tone.connect(gain);
-    overtone.connect(gain);
-
-    if (panner) {
-      panner.pan.value = Math.random() * 1.1 - 0.55;
-      gain.connect(panner);
-      panner.connect(master);
-    } else {
-      gain.connect(master);
-    }
-
-    tone.start(when);
-    overtone.start(when);
-    tone.stop(when + 1.65);
-    overtone.stop(when + 1.65);
-  }
-
-  function sparklePair(immediate) {
-    if (stopped) return;
-    const now = ctx.currentTime + (immediate ? 0.035 : 0.01);
-    const idx = Math.floor(Math.random() * bellNotes.length);
-    const first = bellNotes[idx];
-    const second = bellNotes[(idx + 2) % bellNotes.length];
-
-    bell(first, now, 0.032);
-    bell(second, now + 0.26 + Math.random() * 0.13, 0.021);
-  }
-
-  function scheduleNext() {
-    if (stopped) return;
-    const delay = 1700 + Math.random() * 1900;
-    timer = setTimeout(function () {
-      sparklePair(false);
-      scheduleNext();
-    }, delay);
-  }
-
-  // The very first "diring-diring" lands right on the sky reveal.
-  sparklePair(true);
-  scheduleNext();
-
-  return {
-    fadeOutAndStop: function (seconds) {
-      if (stopped) return;
-      stopped = true;
-      if (timer) clearTimeout(timer);
-
-      const now = ctx.currentTime;
-      const end = now + seconds;
-      master.gain.cancelScheduledValues(now);
-      master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), now);
-      master.gain.exponentialRampToValueAtTime(0.0001, end);
-
-      setTimeout(function () {
-        try { pad1.stop(); } catch (e) {}
-        try { pad2.stop(); } catch (e) {}
-        try { master.disconnect(); } catch (e) {}
-      }, seconds * 1000 + 120);
-    }
-  };
-}
-
 function fadeMediaVolume(media, from, to, durationMs) {
   const startedAt = performance.now();
   media.volume = Math.max(0, Math.min(1, from));
@@ -434,3 +310,68 @@ function pause(ms) {
     setTimeout(resolve, ms);
   });
 }
+function playShineSound(ctx) {
+
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    const master = ctx.createGain();
+    const delay = ctx.createDelay(1);
+    const feedback = ctx.createGain();
+    const wet = ctx.createGain();
+
+    master.gain.value = 0.32;
+
+    delay.delayTime.value = 0.14;
+    feedback.gain.value = 0.22;
+    wet.gain.value = 0.22;
+
+    master.connect(ctx.destination);
+
+    master.connect(delay);
+    delay.connect(feedback);
+    feedback.connect(delay);
+    delay.connect(wet);
+    wet.connect(ctx.destination);
+
+
+    const notes = [
+        { frequency: 1046.5, time: 0 },
+        { frequency: 1568.0, time: 0.11 },
+        { frequency: 2093.0, time: 0.23 }
+    ];
+
+
+    notes.forEach(function (note) {
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.value = note.frequency;
+
+        gain.gain.setValueAtTime(
+            0.0001,
+            now + note.time
+        );
+
+        gain.gain.exponentialRampToValueAtTime(
+            0.13,
+            now + note.time + 0.025
+        );
+
+        gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            now + note.time + 1.15
+        );
+
+        osc.connect(gain);
+        gain.connect(master);
+
+        osc.start(now + note.time);
+        osc.stop(now + note.time + 1.2);
+
+    });
+}
+
