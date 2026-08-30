@@ -1,4 +1,4 @@
-console.log("Mohammad Universe v5 audio + bass debug loaded");
+console.log("Mohammad Universe v7 track-synced bass map loaded");
 
 document.addEventListener("DOMContentLoaded", function () {
   const introScene = document.getElementById("introScene");
@@ -24,11 +24,19 @@ document.addEventListener("DOMContentLoaded", function () {
   let ambient = null;
   let ambientPermanentlyStopped = false;
   let firstSongStart = true;
-  let audioGraphReady = false;
-  let analyser = null;
   let audioContext = null;
-  let sourceNode = null;
-  let reactionFrame = null;
+
+  // This song now uses a precomputed kick/bass map generated from the actual
+  // uploaded Hayede.mp3. No live FFT guessing = no false visual punches on
+  // vocals, sustained bass notes, or unrelated low-frequency content.
+  const bassHits = Array.isArray(window.MOHAMMAD_BASS_HITS)
+    ? window.MOHAMMAD_BASS_HITS
+    : [];
+  const skyVisualEl = document.querySelector(".sky-visual");
+  let beatMapFrame = null;
+  let beatMapIndex = 0;
+  let lastSongTime = 0;
+  let hitCleanupTimer = null;
 
   enterUniverseBtn.addEventListener("click", async function () {
     // A user gesture is available here, so initialise/resume Web Audio now.
@@ -91,15 +99,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       try {
-        await setupSongAudioGraph();
-
         if (isFirstStart) {
           mainSong.volume = 0;
         }
 
         await mainSong.play();
         playSongBtn.textContent = "❚❚";
-        startMusicReaction();
+        startBeatMapReaction();
 
         if (isFirstStart) {
           firstSongStart = false;
@@ -111,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       mainSong.pause();
       playSongBtn.textContent = "▶";
-      stopMusicReaction();
+      stopBeatMapReaction();
     }
   });
 
@@ -128,147 +134,111 @@ document.addEventListener("DOMContentLoaded", function () {
   mainSong.addEventListener("ended", function () {
     playSongBtn.textContent = "▶";
     songProgress.value = 0;
-    stopMusicReaction();
+    stopBeatMapReaction();
   });
 
   songProgress.addEventListener("input", function () {
     if (!mainSong.duration) return;
     mainSong.currentTime = (Number(songProgress.value) / 100) * mainSong.duration;
+    syncBeatMapToCurrentTime();
   });
 
-  async function setupSongAudioGraph() {
-    if (audioGraphReady) return;
-    audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioContext.state === "suspended") await audioContext.resume();
+  mainSong.addEventListener("seeked", function () {
+    syncBeatMapToCurrentTime();
+  });
 
-    sourceNode = audioContext.createMediaElementSource(mainSong);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 1024;
-    analyser.smoothingTimeConstant = 0.35;
-    analyser.minDecibels = -90;
-    analyser.maxDecibels = -10;
+  function syncBeatMapToCurrentTime() {
+    const target = Math.max(0, mainSong.currentTime - 0.06);
+    let lo = 0;
+    let hi = bassHits.length;
 
-    sourceNode.connect(analyser);
-    analyser.connect(audioContext.destination);
-    audioGraphReady = true;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (bassHits[mid].t < target) lo = mid + 1;
+      else hi = mid;
+    }
+
+    beatMapIndex = lo;
+    lastSongTime = mainSong.currentTime;
   }
 
-  function startMusicReaction() {
-    if (!analyser || reactionFrame) return;
+  function startBeatMapReaction() {
+    if (!bassHits.length || beatMapFrame) return;
 
-    const bins = new Uint8Array(analyser.frequencyBinCount);
-    const previousBins = new Uint8Array(analyser.frequencyBinCount);
+    syncBeatMapToCurrentTime();
+    const leadSeconds = 0.030;
 
-    // We only inspect the musical bass/kick region instead of averaging all
-    // of the lowest FFT bins. That prevents a constant bass line from holding
-    // the image in a permanently "pushed" state.
-    const hzPerBin = audioContext.sampleRate / analyser.fftSize;
-    const bassStartBin = Math.max(1, Math.floor(45 / hzPerBin));
-    const bassEndBin = Math.min(
-      analyser.frequencyBinCount - 1,
-      Math.ceil(180 / hzPerBin)
-    );
-
-    let energyAverage = 0.10;
-    let fluxAverage = 0.012;
-    let pulse = 0;
-    let lastBeatAt = -Infinity;
-    let lastFrameAt = performance.now();
-    let warmupFrames = 0;
-
-    function frame(now) {
-      analyser.getByteFrequencyData(bins);
-
-      let squaredEnergy = 0;
-      let positiveFlux = 0;
-      const count = Math.max(1, bassEndBin - bassStartBin + 1);
-
-      for (let i = bassStartBin; i <= bassEndBin; i++) {
-        const current = bins[i] / 255;
-        const previous = previousBins[i] / 255;
-
-        squaredEnergy += current * current;
-        positiveFlux += Math.max(0, current - previous);
-        previousBins[i] = bins[i];
+    function frame() {
+      if (mainSong.paused || mainSong.ended) {
+        beatMapFrame = null;
+        return;
       }
 
-      const energy = Math.sqrt(squaredEnergy / count);
-      const flux = positiveFlux / count;
+      const now = mainSong.currentTime;
 
-      const dt = Math.min(50, Math.max(8, now - lastFrameAt));
-      lastFrameAt = now;
+      // If the user seeks or the browser makes a large playback jump, reset
+      // the pointer so an old hit can never fire at the wrong time.
+      if (now < lastSongTime - 0.12 || now > lastSongTime + 0.45) {
+        syncBeatMapToCurrentTime();
+      }
 
-      // Fast attack, natural decay. The pulse always falls back to zero even
-      // when the song contains a continuous bass note.
-      pulse *= Math.exp(-dt / 155);
+      while (beatMapIndex < bassHits.length && bassHits[beatMapIndex].t <= now + leadSeconds) {
+        const hit = bassHits[beatMapIndex];
 
-      if (warmupFrames < 14) {
-        energyAverage += (energy - energyAverage) * 0.18;
-        fluxAverage += (flux - fluxAverage) * 0.18;
-        warmupFrames += 1;
-      } else {
-        const fluxRatio = flux / Math.max(0.004, fluxAverage);
-        const energyRatio = energy / Math.max(0.055, energyAverage);
-
-        const transientEnough = fluxRatio > 1.55;
-        const bassEnough = energy > 0.075 && energyRatio > 1.025;
-        const cooldownPassed = (now - lastBeatAt) > 125;
-
-        if (transientEnough && bassEnough && cooldownPassed) {
-          const transientStrength = clamp01((fluxRatio - 1.55) / 2.25);
-          const energyStrength = clamp01((energyRatio - 1.025) / 0.42);
-          const beatStrength = clamp01(
-            0.34 + transientStrength * 0.48 + energyStrength * 0.34
-          );
-
-          pulse = Math.max(pulse, beatStrength);
-          lastBeatAt = now;
+        // Only trigger if this frame is genuinely close to the mapped kick.
+        // This protects against late frames after backgrounding / lag.
+        if (hit.t >= now - 0.105) {
+          triggerMappedBassHit(hit.s);
         }
 
-        // Adaptive baselines follow the song slowly. They are deliberately
-        // slower than an individual kick, which is what makes transients pop.
-        fluxAverage += (flux - fluxAverage) * 0.045;
-        energyAverage += (energy - energyAverage) * 0.022;
+        beatMapIndex += 1;
       }
 
-      // Cinematic rather than equalizer-like: a small camera punch from the
-      // moon area, a tiny warmth lift, and a restrained star/glow response.
-      const shaped = Math.pow(clamp01(pulse), 0.82);
-      const scale = 1 + shaped * 0.0125;
-      const brightness = 1 + shaped * 0.042;
-      const saturate = 1 + shaped * 0.052;
-      const starBrightness = 1 + shaped * 0.12;
-      const glow = shaped * 0.145;
-
-      const root = document.documentElement.style;
-      root.setProperty("--bass-scale", scale.toFixed(4));
-      root.setProperty("--bass-brightness", brightness.toFixed(3));
-      root.setProperty("--bass-saturate", saturate.toFixed(3));
-      root.setProperty("--bass-star-brightness", starBrightness.toFixed(3));
-      root.setProperty("--bass-glow", glow.toFixed(3));
-
-      reactionFrame = requestAnimationFrame(frame);
+      lastSongTime = now;
+      beatMapFrame = requestAnimationFrame(frame);
     }
 
-    reactionFrame = requestAnimationFrame(frame);
+    beatMapFrame = requestAnimationFrame(frame);
   }
 
-  function clamp01(value) {
-    return Math.max(0, Math.min(1, value));
+  function triggerMappedBassHit(strength) {
+    if (!skyVisualEl) return;
+
+    const s = Math.max(0.45, Math.min(1, Number(strength) || 0.65));
+
+    // Keep the punch restrained: roughly 0.8% to 1.25% at the peak.
+    // Stronger mapped kicks get slightly more warmth/glow, not a cartoon zoom.
+    skyVisualEl.style.setProperty("--hit-scale", (1.006 + s * 0.0065).toFixed(4));
+    skyVisualEl.style.setProperty("--hit-brightness", (1.018 + s * 0.030).toFixed(3));
+    skyVisualEl.style.setProperty("--hit-saturate", (1.018 + s * 0.038).toFixed(3));
+    skyVisualEl.style.setProperty("--hit-star-brightness", (1.04 + s * 0.10).toFixed(3));
+    skyVisualEl.style.setProperty("--hit-glow", (0.045 + s * 0.105).toFixed(3));
+
+    // Restart the short CSS animation even if hits occur close together.
+    skyVisualEl.classList.remove("bass-hit");
+    void skyVisualEl.offsetWidth;
+    skyVisualEl.classList.add("bass-hit");
+
+    if (hitCleanupTimer) clearTimeout(hitCleanupTimer);
+    hitCleanupTimer = setTimeout(function () {
+      skyVisualEl.classList.remove("bass-hit");
+    }, 390);
   }
 
-  function stopMusicReaction() {
-    if (reactionFrame) {
-      cancelAnimationFrame(reactionFrame);
-      reactionFrame = null;
+  function stopBeatMapReaction() {
+    if (beatMapFrame) {
+      cancelAnimationFrame(beatMapFrame);
+      beatMapFrame = null;
     }
 
-    const root = document.documentElement.style;
-    root.setProperty("--bass-scale", "1");
-    root.setProperty("--bass-brightness", "1");
-    root.setProperty("--bass-saturate", "1");
-    root.setProperty("--bass-star-brightness", "1");
-    root.setProperty("--bass-glow", "0");
+    if (hitCleanupTimer) {
+      clearTimeout(hitCleanupTimer);
+      hitCleanupTimer = null;
+    }
+
+    if (skyVisualEl) {
+      skyVisualEl.classList.remove("bass-hit");
+    }
   }
 
   async function runCinematicPhrase(lines) {
