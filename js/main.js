@@ -1,4 +1,4 @@
-console.log("Mohammad Universe v2 loaded");
+console.log("Mohammad Universe v4 transition debug loaded");
 
 document.addEventListener("DOMContentLoaded", function () {
   const introScene = document.getElementById("introScene");
@@ -40,10 +40,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     await runCinematicPhrase([
       "On the night",
-      "you were born..."
+      "you were",
+      "born..."
     ]);
 
-    await pause(520);
+    await pause(760);
 
     await runCinematicPhrase([
       "the universe",
@@ -51,10 +52,18 @@ document.addEventListener("DOMContentLoaded", function () {
       "like this."
     ]);
 
-    await pause(650);
-    switchScene(transitionScene, skyScene);
+    // Let the copy disappear first, then fade the entire background to pure black.
+    await pause(520);
+    transitionScene.classList.add("blackout");
+    await pause(1450);
 
-    await pause(500);
+    // Enter the sky scene while it is still black, then reveal the moon and stars.
+    switchScene(transitionScene, skyScene);
+    await pause(180);
+    skyScene.classList.add("sky-revealed");
+    transitionScene.classList.remove("blackout");
+
+    await pause(700);
     if (!ambientPermanentlyStopped) {
       ambient = startAmbientSpaceSound(audioContext);
     }
@@ -169,12 +178,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     for (let i = 0; i < lineEls.length; i++) {
       lineEls[i].classList.add("show");
-      await pause(720);
+      await pause(1080);
     }
 
-    await pause(1000);
+    await pause(1250);
     transitionCopy.classList.add("fade-out");
-    await pause(900);
+    await pause(1080);
   }
 
   function switchScene(from, to) {
