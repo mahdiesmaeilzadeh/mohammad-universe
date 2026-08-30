@@ -1,4 +1,4 @@
-console.log("Mohammad Universe v4 transition debug loaded");
+console.log("Mohammad Universe v5 audio + bass debug loaded");
 
 document.addEventListener("DOMContentLoaded", function () {
   const introScene = document.getElementById("introScene");
@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let ambient = null;
   let ambientPermanentlyStopped = false;
+  let firstSongStart = true;
   let audioGraphReady = false;
   let analyser = null;
   let audioContext = null;
@@ -57,18 +58,18 @@ document.addEventListener("DOMContentLoaded", function () {
     transitionScene.classList.add("blackout");
     await pause(1450);
 
-    // Enter the sky scene while it is still black, then reveal the moon and stars.
+    // Enter the sky scene while it is still black.
     switchScene(transitionScene, skyScene);
     await pause(180);
+
+    // Start the first bell exactly as the moon/stars begin to fade in.
+    if (!ambientPermanentlyStopped) {
+      ambient = startStarAmbience(audioContext);
+    }
     skyScene.classList.add("sky-revealed");
     transitionScene.classList.remove("blackout");
 
-    await pause(700);
-    if (!ambientPermanentlyStopped) {
-      ambient = startAmbientSpaceSound(audioContext);
-    }
-
-    await pause(3200);
+    await pause(3900);
     skySurprise.classList.add("visible");
   });
 
@@ -82,22 +83,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
   playSongBtn.addEventListener("click", async function () {
     if (mainSong.paused) {
+      const isFirstStart = firstSongStart;
+
       if (!ambientPermanentlyStopped) {
         ambientPermanentlyStopped = true;
-        if (ambient) ambient.fadeOutAndStop(1.3);
+        if (ambient) ambient.fadeOutAndStop(1.15);
       }
 
       try {
         await setupSongAudioGraph();
+
+        if (isFirstStart) {
+          mainSong.volume = 0;
+        }
+
         await mainSong.play();
         playSongBtn.textContent = "❚❚";
         startMusicReaction();
+
+        if (isFirstStart) {
+          firstSongStart = false;
+          fadeMediaVolume(mainSong, 0, 1, 1150);
+        }
       } catch (error) {
         console.error("Could not play main song:", error);
       }
     } else {
       mainSong.pause();
       playSongBtn.textContent = "▶";
+      stopMusicReaction();
     }
   });
 
@@ -114,8 +128,7 @@ document.addEventListener("DOMContentLoaded", function () {
   mainSong.addEventListener("ended", function () {
     playSongBtn.textContent = "▶";
     songProgress.value = 0;
-    document.documentElement.style.setProperty("--bass-scale", "1");
-    document.documentElement.style.setProperty("--bass-glow", ".32");
+    stopMusicReaction();
   });
 
   songProgress.addEventListener("input", function () {
@@ -140,27 +153,57 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function startMusicReaction() {
     if (!analyser || reactionFrame) return;
+
     const bins = new Uint8Array(analyser.frequencyBinCount);
+    let envelope = 0;
 
     function frame() {
       analyser.getByteFrequencyData(bins);
 
-      // Low-frequency average (bass). Subtle on purpose.
+      // Focus on low frequencies, then gate background energy so only real kicks/bass
+      // produce visible motion. This keeps the scene cinematic rather than "visualizer-like".
       let sum = 0;
-      const end = Math.min(18, bins.length);
+      const end = Math.min(16, bins.length);
       for (let i = 1; i < end; i++) sum += bins[i];
-      const bass = sum / ((end - 1) * 255);
+      const rawBass = sum / ((end - 1) * 255);
 
-      const scale = 1 + bass * 0.008;
-      const glow = 0.28 + bass * 0.72;
+      const gated = Math.max(0, Math.min(1, (rawBass - 0.085) / 0.40));
+      const target = Math.pow(gated, 1.22);
+      const response = target > envelope ? 0.34 : 0.095;
+      envelope += (target - envelope) * response;
 
-      document.documentElement.style.setProperty("--bass-scale", scale.toFixed(4));
-      document.documentElement.style.setProperty("--bass-glow", glow.toFixed(3));
+      // Max zoom is about 1.05%, with a restrained warm light pulse.
+      const scale = 1 + envelope * 0.0105;
+      const brightness = 1 + envelope * 0.060;
+      const saturate = 1 + envelope * 0.075;
+      const starBrightness = 1 + envelope * 0.16;
+      const glow = envelope * 0.18;
+
+      const root = document.documentElement.style;
+      root.setProperty("--bass-scale", scale.toFixed(4));
+      root.setProperty("--bass-brightness", brightness.toFixed(3));
+      root.setProperty("--bass-saturate", saturate.toFixed(3));
+      root.setProperty("--bass-star-brightness", starBrightness.toFixed(3));
+      root.setProperty("--bass-glow", glow.toFixed(3));
 
       reactionFrame = requestAnimationFrame(frame);
     }
 
     frame();
+  }
+
+  function stopMusicReaction() {
+    if (reactionFrame) {
+      cancelAnimationFrame(reactionFrame);
+      reactionFrame = null;
+    }
+
+    const root = document.documentElement.style;
+    root.setProperty("--bass-scale", "1");
+    root.setProperty("--bass-brightness", "1");
+    root.setProperty("--bass-saturate", "1");
+    root.setProperty("--bass-star-brightness", "1");
+    root.setProperty("--bass-glow", "0");
   }
 
   async function runCinematicPhrase(lines) {
@@ -214,58 +257,134 @@ function createStars(container, count, tone) {
   }
 }
 
-function startAmbientSpaceSound(ctx) {
+function startStarAmbience(ctx) {
   if (!ctx) return null;
 
   const master = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
-  const osc1 = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
+  const padGain = ctx.createGain();
+  const padFilter = ctx.createBiquadFilter();
+  const pad1 = ctx.createOscillator();
+  const pad2 = ctx.createOscillator();
 
-  filter.type = "lowpass";
-  filter.frequency.value = 520;
-  filter.Q.value = .7;
-
-  osc1.type = "sine";
-  osc2.type = "triangle";
-  osc1.frequency.value = 73.42;  // D2-ish
-  osc2.frequency.value = 110.0;  // A2
+  let stopped = false;
+  let timer = null;
 
   master.gain.setValueAtTime(0.0001, ctx.currentTime);
-  master.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 2.2);
-
-  lfo.type = "sine";
-  lfo.frequency.value = .11;
-  lfoGain.gain.value = 0.009;
-  lfo.connect(lfoGain);
-  lfoGain.connect(master.gain);
-
-  osc1.connect(filter);
-  osc2.connect(filter);
-  filter.connect(master);
+  master.gain.exponentialRampToValueAtTime(0.72, ctx.currentTime + 0.75);
   master.connect(ctx.destination);
 
-  osc1.start();
-  osc2.start();
-  lfo.start();
+  // Barely audible atmospheric bed underneath the "diring-diring" bells.
+  padFilter.type = "lowpass";
+  padFilter.frequency.value = 480;
+  padFilter.Q.value = 0.55;
+
+  padGain.gain.value = 0.018;
+  pad1.type = "sine";
+  pad2.type = "triangle";
+  pad1.frequency.value = 65.41;  // C2
+  pad2.frequency.value = 98.00;  // G2-ish
+
+  pad1.connect(padFilter);
+  pad2.connect(padFilter);
+  padFilter.connect(padGain);
+  padGain.connect(master);
+
+  pad1.start();
+  pad2.start();
+
+  const bellNotes = [523.25, 659.25, 783.99, 880.00, 1046.50, 1174.66];
+
+  function bell(frequency, when, level) {
+    if (stopped) return;
+
+    const gain = ctx.createGain();
+    const tone = ctx.createOscillator();
+    const overtone = ctx.createOscillator();
+    const panner = typeof ctx.createStereoPanner === "function" ? ctx.createStereoPanner() : null;
+
+    tone.type = "sine";
+    overtone.type = "sine";
+    tone.frequency.setValueAtTime(frequency, when);
+    overtone.frequency.setValueAtTime(frequency * 2.01, when);
+
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.exponentialRampToValueAtTime(level, when + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 1.55);
+
+    tone.connect(gain);
+    overtone.connect(gain);
+
+    if (panner) {
+      panner.pan.value = Math.random() * 1.1 - 0.55;
+      gain.connect(panner);
+      panner.connect(master);
+    } else {
+      gain.connect(master);
+    }
+
+    tone.start(when);
+    overtone.start(when);
+    tone.stop(when + 1.65);
+    overtone.stop(when + 1.65);
+  }
+
+  function sparklePair(immediate) {
+    if (stopped) return;
+    const now = ctx.currentTime + (immediate ? 0.035 : 0.01);
+    const idx = Math.floor(Math.random() * bellNotes.length);
+    const first = bellNotes[idx];
+    const second = bellNotes[(idx + 2) % bellNotes.length];
+
+    bell(first, now, 0.032);
+    bell(second, now + 0.26 + Math.random() * 0.13, 0.021);
+  }
+
+  function scheduleNext() {
+    if (stopped) return;
+    const delay = 1700 + Math.random() * 1900;
+    timer = setTimeout(function () {
+      sparklePair(false);
+      scheduleNext();
+    }, delay);
+  }
+
+  // The very first "diring-diring" lands right on the sky reveal.
+  sparklePair(true);
+  scheduleNext();
 
   return {
     fadeOutAndStop: function (seconds) {
+      if (stopped) return;
+      stopped = true;
+      if (timer) clearTimeout(timer);
+
       const now = ctx.currentTime;
       const end = now + seconds;
       master.gain.cancelScheduledValues(now);
       master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), now);
       master.gain.exponentialRampToValueAtTime(0.0001, end);
+
       setTimeout(function () {
-        try { osc1.stop(); } catch (e) {}
-        try { osc2.stop(); } catch (e) {}
-        try { lfo.stop(); } catch (e) {}
+        try { pad1.stop(); } catch (e) {}
+        try { pad2.stop(); } catch (e) {}
         try { master.disconnect(); } catch (e) {}
-      }, seconds * 1000 + 100);
+      }, seconds * 1000 + 120);
     }
   };
+}
+
+function fadeMediaVolume(media, from, to, durationMs) {
+  const startedAt = performance.now();
+  media.volume = Math.max(0, Math.min(1, from));
+
+  function step(now) {
+    const progress = Math.min(1, (now - startedAt) / durationMs);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    media.volume = Math.max(0, Math.min(1, from + (to - from) * eased));
+    if (progress < 1) requestAnimationFrame(step);
+  }
+
+  requestAnimationFrame(step);
 }
 
 function formatTime(seconds) {

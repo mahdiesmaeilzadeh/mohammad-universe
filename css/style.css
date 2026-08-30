@@ -4,7 +4,10 @@
   --gold: #f0a13a;
   --gold-light: #ffc46b;
   --bass-scale: 1;
-  --bass-glow: 0.32;
+  --bass-glow: 0;
+  --bass-brightness: 1;
+  --bass-saturate: 1;
+  --bass-star-brightness: 1;
 }
 
 * { box-sizing: border-box; }
@@ -364,6 +367,10 @@ button { -webkit-tap-highlight-color: transparent; }
   display: block;
   width: 100%;
   height: 100%;
+  transform: scale(var(--bass-scale));
+  transform-origin: 50% 38%;
+  transition: transform 70ms linear;
+  will-change: transform;
 }
 
 .sky-art {
@@ -372,10 +379,33 @@ button { -webkit-tap-highlight-color: transparent; }
   height: 100%;
   object-fit: cover;
   object-position: center center;
-  filter: none;
+  filter: brightness(var(--bass-brightness)) saturate(var(--bass-saturate));
+  transition: filter 70ms linear;
+  will-change: filter;
 }
 
-.dynamic-stars { z-index: 2; }
+.dynamic-stars {
+  z-index: 2;
+  filter: brightness(var(--bass-star-brightness));
+  transition: filter 70ms linear;
+  will-change: filter;
+}
+
+/* Very subtle warm pulse driven by the main song's bass. */
+.sky-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: var(--bass-glow);
+  background:
+    radial-gradient(circle at 50% 31%, rgba(255, 145, 55, .34), transparent 28%),
+    radial-gradient(circle at 50% 48%, rgba(255, 108, 26, .12), transparent 52%);
+  mix-blend-mode: screen;
+  transition: opacity 70ms linear;
+  will-change: opacity;
+}
 .dynamic-stars .star {
   background: #ffd7a2;
   box-shadow: 0 0 8px rgba(255, 154, 55, .55);
