@@ -143,8 +143,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     sourceNode = audioContext.createMediaElementSource(mainSong);
     analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.82;
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.35;
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
 
     sourceNode.connect(analyser);
     analyser.connect(audioContext.destination);
@@ -155,29 +157,88 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!analyser || reactionFrame) return;
 
     const bins = new Uint8Array(analyser.frequencyBinCount);
-    let envelope = 0;
+    const previousBins = new Uint8Array(analyser.frequencyBinCount);
 
-    function frame() {
+    // We only inspect the musical bass/kick region instead of averaging all
+    // of the lowest FFT bins. That prevents a constant bass line from holding
+    // the image in a permanently "pushed" state.
+    const hzPerBin = audioContext.sampleRate / analyser.fftSize;
+    const bassStartBin = Math.max(1, Math.floor(45 / hzPerBin));
+    const bassEndBin = Math.min(
+      analyser.frequencyBinCount - 1,
+      Math.ceil(180 / hzPerBin)
+    );
+
+    let energyAverage = 0.10;
+    let fluxAverage = 0.012;
+    let pulse = 0;
+    let lastBeatAt = -Infinity;
+    let lastFrameAt = performance.now();
+    let warmupFrames = 0;
+
+    function frame(now) {
       analyser.getByteFrequencyData(bins);
 
-      // Focus on low frequencies, then gate background energy so only real kicks/bass
-      // produce visible motion. This keeps the scene cinematic rather than "visualizer-like".
-      let sum = 0;
-      const end = Math.min(16, bins.length);
-      for (let i = 1; i < end; i++) sum += bins[i];
-      const rawBass = sum / ((end - 1) * 255);
+      let squaredEnergy = 0;
+      let positiveFlux = 0;
+      const count = Math.max(1, bassEndBin - bassStartBin + 1);
 
-      const gated = Math.max(0, Math.min(1, (rawBass - 0.085) / 0.40));
-      const target = Math.pow(gated, 1.22);
-      const response = target > envelope ? 0.34 : 0.095;
-      envelope += (target - envelope) * response;
+      for (let i = bassStartBin; i <= bassEndBin; i++) {
+        const current = bins[i] / 255;
+        const previous = previousBins[i] / 255;
 
-      // Max zoom is about 1.05%, with a restrained warm light pulse.
-      const scale = 1 + envelope * 0.0105;
-      const brightness = 1 + envelope * 0.060;
-      const saturate = 1 + envelope * 0.075;
-      const starBrightness = 1 + envelope * 0.16;
-      const glow = envelope * 0.18;
+        squaredEnergy += current * current;
+        positiveFlux += Math.max(0, current - previous);
+        previousBins[i] = bins[i];
+      }
+
+      const energy = Math.sqrt(squaredEnergy / count);
+      const flux = positiveFlux / count;
+
+      const dt = Math.min(50, Math.max(8, now - lastFrameAt));
+      lastFrameAt = now;
+
+      // Fast attack, natural decay. The pulse always falls back to zero even
+      // when the song contains a continuous bass note.
+      pulse *= Math.exp(-dt / 155);
+
+      if (warmupFrames < 14) {
+        energyAverage += (energy - energyAverage) * 0.18;
+        fluxAverage += (flux - fluxAverage) * 0.18;
+        warmupFrames += 1;
+      } else {
+        const fluxRatio = flux / Math.max(0.004, fluxAverage);
+        const energyRatio = energy / Math.max(0.055, energyAverage);
+
+        const transientEnough = fluxRatio > 1.55;
+        const bassEnough = energy > 0.075 && energyRatio > 1.025;
+        const cooldownPassed = (now - lastBeatAt) > 125;
+
+        if (transientEnough && bassEnough && cooldownPassed) {
+          const transientStrength = clamp01((fluxRatio - 1.55) / 2.25);
+          const energyStrength = clamp01((energyRatio - 1.025) / 0.42);
+          const beatStrength = clamp01(
+            0.34 + transientStrength * 0.48 + energyStrength * 0.34
+          );
+
+          pulse = Math.max(pulse, beatStrength);
+          lastBeatAt = now;
+        }
+
+        // Adaptive baselines follow the song slowly. They are deliberately
+        // slower than an individual kick, which is what makes transients pop.
+        fluxAverage += (flux - fluxAverage) * 0.045;
+        energyAverage += (energy - energyAverage) * 0.022;
+      }
+
+      // Cinematic rather than equalizer-like: a small camera punch from the
+      // moon area, a tiny warmth lift, and a restrained star/glow response.
+      const shaped = Math.pow(clamp01(pulse), 0.82);
+      const scale = 1 + shaped * 0.0125;
+      const brightness = 1 + shaped * 0.042;
+      const saturate = 1 + shaped * 0.052;
+      const starBrightness = 1 + shaped * 0.12;
+      const glow = shaped * 0.145;
 
       const root = document.documentElement.style;
       root.setProperty("--bass-scale", scale.toFixed(4));
@@ -189,7 +250,11 @@ document.addEventListener("DOMContentLoaded", function () {
       reactionFrame = requestAnimationFrame(frame);
     }
 
-    frame();
+    reactionFrame = requestAnimationFrame(frame);
+  }
+
+  function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
   }
 
   function stopMusicReaction() {
